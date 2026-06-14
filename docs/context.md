@@ -9,7 +9,7 @@ Aplicación Spring Boot para gestión de biblioteca: catálogo de libros y contr
   - spring-boot-starter-data-jpa
   - spring-boot-starter-security
   - spring-boot-starter-validation
-  - spring-boot-starter-webmvc
+  - spring-boot-starter-web
 - Maven
 - MySQL (mysql-connector-j)
 - Spring DevTools
@@ -20,14 +20,16 @@ demo/
 ├── src/main/java/com/java/prueba_ia/demo/
 │   ├── DemoApplication.java
 │   ├── config/
-│   │   ├── SecurityConfig.java
+│   │   ├── JpaAuditingConfig.java
 │   │   ├── JwtAuthFilter.java
 │   │   ├── JwtUtil.java
-│   │   └── JpaAuditingConfig.java
+│   │   ├── SecurityConfig.java
+│   │   └── WebConfig.java
 │   ├── controllers/
 │   │   ├── AuthController.java
 │   │   ├── BookController.java
-│   │   └── LoanController.java
+│   │   ├── LoanController.java
+│   │   └── UserController.java
 │   ├── dto/
 │   │   ├── auth/
 │   │   │   ├── LoginRequest.java
@@ -97,7 +99,7 @@ demo/
 | user                   | User           | `@ManyToOne`, not null                      |
 | book                   | Book           | `@ManyToOne`, not null                      |
 | fechaPrestamo          | LocalDateTime  | Se setea al crear (now)                     |
-| fechaDevolucion        | LocalDateTime  | Nullable, se setea al devolver              |
+| fechaDevolucion        | LocalDateTime  | Null al crear, se setea al devolver         |
 | fechaMaximaDevolucion  | LocalDateTime  | = fechaPrestamo + 7d (se extiende +7d)      |
 | extensiones            | int            | Contador de extensiones solicitadas         |
 | estado                 | EstadoPrestamo (Enum) | `ACTIVO` / `DEVUELTO` / `VENCIDO`          |
@@ -113,7 +115,7 @@ demo/
 - **Role**: `ADMIN`, `USER`
 - **EstadoPrestamo**: `ACTIVO`, `DEVUELTO`, `VENCIDO`
 
-## Endpoints (planeados)
+## Endpoints
 | Método | Ruta                            | Auth     | Rol   | Descripción                |
 |--------|---------------------------------|----------|-------|----------------------------|
 | POST   | `/api/auth/register`            | No       | -     | Crear usuario              |
@@ -123,21 +125,24 @@ demo/
 | POST   | `/api/libros`                   | JWT      | ADMIN | Crear libro                |
 | PUT    | `/api/libros/{id}`              | JWT      | ADMIN | Actualizar libro           |
 | DELETE | `/api/libros/{id}`              | JWT      | ADMIN | Eliminar libro             |
-| GET    | `/api/prestamos`                | JWT      | -     | Listar préstamos (paginado)|
+| GET    | `/api/prestamos`                | JWT      | -     | Listar préstamos (ADMIN: todos, USER: solo propios) |
 | POST   | `/api/prestamos`                | JWT      | -     | Crear préstamo             |
 | PUT    | `/api/prestamos/{id}/devolver`  | JWT      | -     | Devolver libro             |
 | PUT    | `/api/prestamos/{id}/extender`  | JWT      | -     | Extender préstamo 7d más   |
+| DELETE | `/api/usuarios/{id}`            | JWT      | ADMIN | Eliminar usuario (bloqueado si tiene préstamos activos) |
 
 Parámetros de paginación: `?page=0&size=10&sort=titulo,asc`
 
 ## Reglas importantes
 - Contraseñas hasheadas con BCrypt (`PasswordEncoder`).
-- Endpoints protegidos con JWT (excepto `/api/auth/**`).
+- Endpoints protegidos con JWT (excepto `/api/auth/**`). El JWT es auto-contenido (no consulta DB por request).
 - Solo ADMIN puede crear/editar/eliminar libros.
 - Un préstamo descuenta `ejemplaresDisponibles` del libro.
 - No se permite prestar un libro si `ejemplaresDisponibles == 0`.
+- No se puede eliminar un libro si tiene préstamos activos.
 - Al devolver un libro, se incrementa `ejemplaresDisponibles` y el estado pasa a `DEVUELTO`.
 - `VENCIDO` es dinámico (no se persiste): se calcula en el mapper si `estado == ACTIVO && now > fechaMaximaDevolucion`.
-- **Extensión**: solo se puede pedir en el último día (ventana de 24h antes de `fechaMaximaDevolucion`). Suma 7 días. Si `ejemplaresDisponibles == 0` → máximo 1 extensión hasta que devuelvan más copias. Si `ejemplaresDisponibles > 0` → extensiones ilimitadas.
+- **Extensión**: solo se puede pedir en el último día (desde el inicio del día hasta `fechaMaximaDevolucion`). Suma 7 días. Si `ejemplaresDisponibles == 0` → máximo 1 extensión hasta que devuelvan más copias. Si `ejemplaresDisponibles > 0` → extensiones ilimitadas.
 - Auditoría con `@CreatedDate` + `JpaAuditing`.
-- Manejo global de excepciones con `@RestControllerAdvice`.
+- Manejo global de excepciones con `@RestControllerAdvice` (incluye `IllegalArgumentException`, `IllegalStateException`, `AccessDeniedException`, `MethodArgumentNotValidException`).
+- Las entidades JPA usan `@EqualsAndHashCode(onlyExplicitlyIncluded = true)` sobre el campo `id` para evitar problemas con proxies de Hibernate.

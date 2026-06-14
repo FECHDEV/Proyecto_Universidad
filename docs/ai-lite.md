@@ -22,7 +22,9 @@ DTOs separados por dominio
 ## Endpoints
 - `POST /auth/register`, `POST /auth/login`
 - CRUD `/libros` (ADMIN write, USER read)
-- `POST /prestamos`, `PUT /prestamos/{id}/devolver`, `PUT /prestamos/{id}/extender`, `GET /prestamos`
+- `POST /prestamos`, `PUT /prestamos/{id}/devolver`, `PUT /prestamos/{id}/extender`
+- `GET /prestamos` (ADMIN ve todos, USER ve solo sus préstamos)
+- `DELETE /usuarios/{id}` (solo ADMIN, bloqueado si hay préstamos activos)
 
 ## Notas
 - Mantener lógica simple, sin sobre-ingeniería
