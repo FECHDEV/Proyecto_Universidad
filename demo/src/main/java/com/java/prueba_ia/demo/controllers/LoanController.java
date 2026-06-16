@@ -38,12 +38,12 @@ public class LoanController {
     public ResponseEntity<LoanResponse> devolver(@PathVariable Long id,
                                                   Authentication authentication) {
         String username = authentication.getName();
-        return ResponseEntity.ok(loanService.devolver(id, username));
+        return ResponseEntity.ok(loanService.devolver(id, username, authentication.getAuthorities()));
     }
 
     @PutMapping("/{id}/extender")
     public ResponseEntity<LoanResponse> extender(@PathVariable Long id,
                                                   Authentication authentication) {
-        return ResponseEntity.ok(loanService.solicitarExtension(id, authentication.getName()));
+        return ResponseEntity.ok(loanService.solicitarExtension(id, authentication.getName(), authentication.getAuthorities()));
     }
 }

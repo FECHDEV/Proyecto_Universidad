@@ -11,6 +11,6 @@ import java.util.Collection;
 public interface LoanService {
     Page<LoanResponse> findAll(Pageable pageable, String username, Collection<? extends GrantedAuthority> authorities);
     LoanResponse create(LoanRequest request, String username);
-    LoanResponse devolver(Long id, String username);
-    LoanResponse solicitarExtension(Long id, String username);
+    LoanResponse devolver(Long id, String username, Collection<? extends GrantedAuthority> authorities);
+    LoanResponse solicitarExtension(Long id, String username, Collection<? extends GrantedAuthority> authorities);
 }

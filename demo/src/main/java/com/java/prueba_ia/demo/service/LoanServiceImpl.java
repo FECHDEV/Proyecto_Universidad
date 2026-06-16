@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -87,9 +88,11 @@ public class LoanServiceImpl implements LoanService {
 
     @Override
     @Transactional
-    public LoanResponse devolver(Long id, String username) {
+    public LoanResponse devolver(Long id, String username, Collection<? extends GrantedAuthority> authorities) {
         Loan loan = loanRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Préstamo no encontrado con id: " + id));
+
+        verifyOwnershipOrAdmin(loan, username, authorities);
 
         if (loan.getEstado() != EstadoPrestamo.ACTIVO) {
             throw new IllegalArgumentException("El préstamo ya fue devuelto o está vencido");
@@ -108,9 +111,11 @@ public class LoanServiceImpl implements LoanService {
 
     @Override
     @Transactional
-    public LoanResponse solicitarExtension(Long id, String username) {
+    public LoanResponse solicitarExtension(Long id, String username, Collection<? extends GrantedAuthority> authorities) {
         Loan loan = loanRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Préstamo no encontrado con id: " + id));
+
+        verifyOwnershipOrAdmin(loan, username, authorities);
 
         if (loan.getEstado() != EstadoPrestamo.ACTIVO) {
             throw new IllegalStateException("Solo se puede extender un préstamo activo");
@@ -133,6 +138,14 @@ public class LoanServiceImpl implements LoanService {
         loanRepository.save(loan);
 
         return loanMapper.toResponse(loan);
+    }
+
+    private void verifyOwnershipOrAdmin(Loan loan, String username, Collection<? extends GrantedAuthority> authorities) {
+        boolean isAdmin = authorities.stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (!isAdmin && !Objects.equals(loan.getUser().getUsername(), username)) {
+            throw new IllegalArgumentException("No tienes permiso para modificar este préstamo");
+        }
     }
 
 }
