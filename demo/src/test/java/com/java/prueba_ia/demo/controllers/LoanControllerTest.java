@@ -2,6 +2,7 @@ package com.java.prueba_ia.demo.controllers;
 
 import com.java.prueba_ia.demo.dto.loan.LoanRequest;
 import com.java.prueba_ia.demo.dto.loan.LoanResponse;
+import com.java.prueba_ia.demo.dto.loan.LoanScanRequest;
 import com.java.prueba_ia.demo.service.LoanService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -93,6 +94,32 @@ class LoanControllerTest {
         when(loanService.solicitarExtension(anyLong(), anyString(), anyCollection())).thenReturn(loanResponse);
 
         ResponseEntity<LoanResponse> result = loanController.extender(1L, authentication);
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertEquals("ACTIVO", result.getBody().getEstado());
+    }
+
+    @Test
+    void createByQr_ShouldReturn201() {
+        LoanScanRequest scanRequest = new LoanScanRequest();
+        scanRequest.setCodigoQr("test-uuid");
+
+        when(loanService.createByQr(any(LoanScanRequest.class), anyString())).thenReturn(loanResponse);
+
+        ResponseEntity<LoanResponse> result = loanController.createByQr(scanRequest, authentication);
+
+        assertEquals(HttpStatus.CREATED, result.getStatusCode());
+        assertEquals("Cien Años de Soledad", result.getBody().getBookTitulo());
+    }
+
+    @Test
+    void devolverByQr_ShouldReturn200() {
+        LoanScanRequest scanRequest = new LoanScanRequest();
+        scanRequest.setCodigoQr("test-uuid");
+
+        when(loanService.devolverByQr(any(LoanScanRequest.class), anyString(), anyCollection())).thenReturn(loanResponse);
+
+        ResponseEntity<LoanResponse> result = loanController.devolverByQr(scanRequest, authentication);
 
         assertEquals(HttpStatus.OK, result.getStatusCode());
         assertEquals("ACTIVO", result.getBody().getEstado());

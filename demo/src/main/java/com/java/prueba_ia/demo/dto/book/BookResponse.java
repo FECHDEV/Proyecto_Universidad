@@ -14,6 +14,7 @@ public class BookResponse {
     private String titulo;
     private String autor;
     private String isbn;
+    private String codigoQr;
     private String genero;
     private Integer anioPublicacion;
     private Integer ejemplaresDisponibles;

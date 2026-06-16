@@ -2,6 +2,7 @@ package com.java.prueba_ia.demo.service;
 
 import com.java.prueba_ia.demo.dto.loan.LoanRequest;
 import com.java.prueba_ia.demo.dto.loan.LoanResponse;
+import com.java.prueba_ia.demo.dto.loan.LoanScanRequest;
 import com.java.prueba_ia.demo.entity.Book;
 import com.java.prueba_ia.demo.entity.EstadoPrestamo;
 import com.java.prueba_ia.demo.entity.Loan;
@@ -13,7 +14,6 @@ import com.java.prueba_ia.demo.repository.LoanRepository;
 import com.java.prueba_ia.demo.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
@@ -43,16 +43,7 @@ public class LoanServiceImpl implements LoanService {
         }
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
-        List<Loan> userLoans = loanRepository.findByUserId(user.getId());
-        int start = (int) pageable.getOffset();
-        int end = Math.min(start + pageable.getPageSize(), userLoans.size());
-        if (start > userLoans.size()) {
-            return Page.empty(pageable);
-        }
-        List<LoanResponse> content = userLoans.subList(start, end).stream()
-                .map(loanMapper::toResponse)
-                .toList();
-        return new PageImpl<>(content, pageable, userLoans.size());
+        return loanRepository.findByUserId(user.getId(), pageable).map(loanMapper::toResponse);
     }
 
     @Override
@@ -61,7 +52,7 @@ public class LoanServiceImpl implements LoanService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
 
-        Book book = bookRepository.findById(request.getBookId())
+        Book book = bookRepository.findByIdForUpdate(request.getBookId())
                 .orElseThrow(() -> new ResourceNotFoundException("Libro no encontrado con id: " + request.getBookId()));
 
         if (book.getEjemplaresDisponibles() <= 0) {
@@ -140,12 +131,83 @@ public class LoanServiceImpl implements LoanService {
         return loanMapper.toResponse(loan);
     }
 
+    @Override
+    @Transactional
+    public LoanResponse createByQr(LoanScanRequest request, String username) {
+        Book book = bookRepository.findByCodigoQrForUpdate(request.getCodigoQr())
+                .orElseThrow(() -> new ResourceNotFoundException("Libro no encontrado con código QR: " + request.getCodigoQr()));
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+
+        if (book.getEjemplaresDisponibles() <= 0) {
+            throw new IllegalArgumentException("No hay ejemplares disponibles para este libro");
+        }
+
+        book.setEjemplaresDisponibles(book.getEjemplaresDisponibles() - 1);
+
+        LocalDateTime now = LocalDateTime.now();
+
+        Loan loan = Loan.builder()
+                .user(user)
+                .book(book)
+                .fechaPrestamo(now)
+                .fechaMaximaDevolucion(now.plusDays(7))
+                .extensiones(0)
+                .estado(EstadoPrestamo.ACTIVO)
+                .build();
+
+        loanRepository.save(loan);
+
+        return loanMapper.toResponse(loan);
+    }
+
+    @Override
+    @Transactional
+    public LoanResponse devolverByQr(LoanScanRequest request, String username, Collection<? extends GrantedAuthority> authorities) {
+        Book book = bookRepository.findByCodigoQr(request.getCodigoQr())
+                .orElseThrow(() -> new ResourceNotFoundException("Libro no encontrado con código QR: " + request.getCodigoQr()));
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+
+        List<Loan> activeLoans = loanRepository.findByBookId(book.getId()).stream()
+                .filter(loan -> loan.getEstado() == EstadoPrestamo.ACTIVO)
+                .toList();
+
+        if (activeLoans.isEmpty()) {
+            throw new IllegalArgumentException("No hay préstamos activos para este libro");
+        }
+
+        Loan loan = activeLoans.stream()
+                .filter(l -> l.getUser().getId().equals(user.getId()))
+                .findFirst()
+                .orElseGet(() -> {
+                    if (isAdmin(authorities)) {
+                        return activeLoans.get(0);
+                    }
+                    throw new IllegalArgumentException("No tienes un préstamo activo de este libro");
+                });
+
+        loan.setEstado(EstadoPrestamo.DEVUELTO);
+        loan.setFechaDevolucion(LocalDateTime.now());
+
+        book.setEjemplaresDisponibles(book.getEjemplaresDisponibles() + 1);
+
+        loanRepository.save(loan);
+
+        return loanMapper.toResponse(loan);
+    }
+
     private void verifyOwnershipOrAdmin(Loan loan, String username, Collection<? extends GrantedAuthority> authorities) {
-        boolean isAdmin = authorities.stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-        if (!isAdmin && !Objects.equals(loan.getUser().getUsername(), username)) {
+        if (!isAdmin(authorities) && !Objects.equals(loan.getUser().getUsername(), username)) {
             throw new IllegalArgumentException("No tienes permiso para modificar este préstamo");
         }
+    }
+
+    private boolean isAdmin(Collection<? extends GrantedAuthority> authorities) {
+        return authorities.stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
     }
 
 }

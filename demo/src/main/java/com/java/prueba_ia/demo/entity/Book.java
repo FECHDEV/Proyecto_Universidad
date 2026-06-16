@@ -36,6 +36,9 @@ public class Book {
     @Column(unique = true)
     private String isbn;
 
+    @Column(unique = true, length = 36)
+    private String codigoQr;
+
     private String genero;
 
     private Integer anioPublicacion;

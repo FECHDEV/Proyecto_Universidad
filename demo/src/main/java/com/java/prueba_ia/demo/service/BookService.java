@@ -11,4 +11,6 @@ public interface BookService {
     BookResponse create(BookRequest request);
     BookResponse update(Long id, BookRequest request);
     void delete(Long id);
+    byte[] getQRImage(Long id);
+    BookResponse findByQrCode(String codigoQr);
 }

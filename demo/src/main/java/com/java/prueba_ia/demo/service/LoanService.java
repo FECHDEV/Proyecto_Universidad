@@ -2,6 +2,7 @@ package com.java.prueba_ia.demo.service;
 
 import com.java.prueba_ia.demo.dto.loan.LoanRequest;
 import com.java.prueba_ia.demo.dto.loan.LoanResponse;
+import com.java.prueba_ia.demo.dto.loan.LoanScanRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.GrantedAuthority;
@@ -13,4 +14,6 @@ public interface LoanService {
     LoanResponse create(LoanRequest request, String username);
     LoanResponse devolver(Long id, String username, Collection<? extends GrantedAuthority> authorities);
     LoanResponse solicitarExtension(Long id, String username, Collection<? extends GrantedAuthority> authorities);
+    LoanResponse createByQr(LoanScanRequest request, String username);
+    LoanResponse devolverByQr(LoanScanRequest request, String username, Collection<? extends GrantedAuthority> authorities);
 }

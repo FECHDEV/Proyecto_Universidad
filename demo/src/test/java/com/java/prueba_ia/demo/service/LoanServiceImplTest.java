@@ -2,6 +2,7 @@ package com.java.prueba_ia.demo.service;
 
 import com.java.prueba_ia.demo.dto.loan.LoanRequest;
 import com.java.prueba_ia.demo.dto.loan.LoanResponse;
+import com.java.prueba_ia.demo.dto.loan.LoanScanRequest;
 import com.java.prueba_ia.demo.entity.*;
 import com.java.prueba_ia.demo.exceptions.ResourceNotFoundException;
 import com.java.prueba_ia.demo.mapper.LoanMapper;
@@ -54,6 +55,7 @@ class LoanServiceImplTest {
     private Loan activeLoan;
     private LoanResponse loanResponse;
     private LoanRequest loanRequest;
+    private LoanScanRequest loanScanRequest;
     private Collection<GrantedAuthority> userAuthorities;
     private Collection<GrantedAuthority> adminAuthorities;
 
@@ -82,6 +84,7 @@ class LoanServiceImplTest {
                 .titulo("Cien Años de Soledad")
                 .autor("Gabriel García Márquez")
                 .isbn("978-3-16-148410-0")
+                .codigoQr("test-uuid-qr")
                 .ejemplaresDisponibles(5)
                 .build();
 
@@ -101,12 +104,16 @@ class LoanServiceImplTest {
                 .username("testuser")
                 .bookId(1L)
                 .bookTitulo("Cien Años de Soledad")
+                .codigoQr("test-uuid-qr")
                 .estado("ACTIVO")
                 .vencido(false)
                 .build();
 
         loanRequest = new LoanRequest();
         loanRequest.setBookId(1L);
+
+        loanScanRequest = new LoanScanRequest();
+        loanScanRequest.setCodigoQr("test-uuid-qr");
 
         userAuthorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
         adminAuthorities = List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
@@ -130,7 +137,7 @@ class LoanServiceImplTest {
         Pageable pageable = PageRequest.of(0, 10);
 
         when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(user));
-        when(loanRepository.findByUserId(1L)).thenReturn(List.of(activeLoan));
+        when(loanRepository.findByUserId(1L, pageable)).thenReturn(new PageImpl<>(List.of(activeLoan)));
         when(loanMapper.toResponse(activeLoan)).thenReturn(loanResponse);
 
         Page<LoanResponse> result = loanService.findAll(pageable, "testuser", userAuthorities);
@@ -141,7 +148,7 @@ class LoanServiceImplTest {
     @Test
     void create_ShouldSucceed() {
         when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(user));
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
+        when(bookRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(book));
         when(loanRepository.save(any(Loan.class))).thenReturn(activeLoan);
         when(loanMapper.toResponse(any(Loan.class))).thenReturn(loanResponse);
 
@@ -157,7 +164,7 @@ class LoanServiceImplTest {
         book.setEjemplaresDisponibles(0);
 
         when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(user));
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
+        when(bookRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(book));
 
         assertThrows(IllegalArgumentException.class, () -> loanService.create(loanRequest, "testuser"));
         verify(loanRepository, never()).save(any());
@@ -285,5 +292,86 @@ class LoanServiceImplTest {
 
         assertThrows(IllegalStateException.class,
                 () -> loanService.solicitarExtension(1L, "testuser", userAuthorities));
+    }
+
+    @Test
+    void createByQr_ShouldSucceed() {
+        when(bookRepository.findByCodigoQrForUpdate("test-uuid-qr")).thenReturn(Optional.of(book));
+        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(user));
+        when(loanRepository.save(any(Loan.class))).thenReturn(activeLoan);
+        when(loanMapper.toResponse(any(Loan.class))).thenReturn(loanResponse);
+
+        LoanResponse result = loanService.createByQr(loanScanRequest, "testuser");
+
+        assertNotNull(result);
+        assertEquals(4, book.getEjemplaresDisponibles());
+    }
+
+    @Test
+    void createByQr_InvalidQr_ShouldThrow() {
+        when(bookRepository.findByCodigoQrForUpdate("test-uuid-qr")).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> loanService.createByQr(loanScanRequest, "testuser"));
+    }
+
+    @Test
+    void createByQr_NoCopies_ShouldThrow() {
+        book.setEjemplaresDisponibles(0);
+
+        when(bookRepository.findByCodigoQrForUpdate("test-uuid-qr")).thenReturn(Optional.of(book));
+        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(user));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> loanService.createByQr(loanScanRequest, "testuser"));
+    }
+
+    @Test
+    void devolverByQr_ShouldSucceed() {
+        book.setCodigoQr("test-uuid-qr");
+
+        when(bookRepository.findByCodigoQr("test-uuid-qr")).thenReturn(Optional.of(book));
+        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(user));
+        when(loanRepository.findByBookId(1L)).thenReturn(List.of(activeLoan));
+        when(loanRepository.save(any(Loan.class))).thenReturn(activeLoan);
+        when(loanMapper.toResponse(any(Loan.class))).thenReturn(loanResponse);
+
+        LoanResponse result = loanService.devolverByQr(loanScanRequest, "testuser", userAuthorities);
+
+        assertNotNull(result);
+        assertEquals(EstadoPrestamo.DEVUELTO, activeLoan.getEstado());
+        assertEquals(6, book.getEjemplaresDisponibles());
+    }
+
+    @Test
+    void devolverByQr_NoActiveLoan_ShouldThrow() {
+        book.setCodigoQr("test-uuid-qr");
+
+        when(bookRepository.findByCodigoQr("test-uuid-qr")).thenReturn(Optional.of(book));
+        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(user));
+        when(loanRepository.findByBookId(1L)).thenReturn(List.of());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> loanService.devolverByQr(loanScanRequest, "testuser", userAuthorities));
+    }
+
+    @Test
+    void devolverByQr_NotOwnLoan_ShouldThrow() {
+        book.setCodigoQr("test-uuid-qr");
+
+        when(bookRepository.findByCodigoQr("test-uuid-qr")).thenReturn(Optional.of(book));
+        when(userRepository.findByUsername("otheruser")).thenReturn(Optional.of(otherUser));
+        when(loanRepository.findByBookId(1L)).thenReturn(List.of(activeLoan));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> loanService.devolverByQr(loanScanRequest, "otheruser", userAuthorities));
+    }
+
+    @Test
+    void devolverByQr_InvalidQr_ShouldThrow() {
+        when(bookRepository.findByCodigoQr("test-uuid-qr")).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> loanService.devolverByQr(loanScanRequest, "testuser", userAuthorities));
     }
 }

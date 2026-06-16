@@ -1,5 +1,6 @@
 package com.java.prueba_ia.demo.service;
 
+import com.java.prueba_ia.demo.config.QrGenerator;
 import com.java.prueba_ia.demo.dto.book.BookRequest;
 import com.java.prueba_ia.demo.dto.book.BookResponse;
 import com.java.prueba_ia.demo.entity.Book;
@@ -14,6 +15,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class BookServiceImpl implements BookService {
@@ -21,6 +25,7 @@ public class BookServiceImpl implements BookService {
     private final BookRepository bookRepository;
     private final BookMapper bookMapper;
     private final LoanRepository loanRepository;
+    private final QrGenerator qrGenerator;
 
     @Override
     @Transactional(readOnly = true)
@@ -42,6 +47,7 @@ public class BookServiceImpl implements BookService {
         }
 
         Book book = bookMapper.toEntity(request);
+        book.setCodigoQr(UUID.randomUUID().toString());
         return bookMapper.toResponse(bookRepository.save(book));
     }
 
@@ -58,12 +64,25 @@ public class BookServiceImpl implements BookService {
     @Transactional
     public void delete(Long id) {
         Book book = findBook(id);
-        boolean hasActiveLoans = loanRepository.findByBookId(id).stream()
-                .anyMatch(loan -> loan.getEstado() == EstadoPrestamo.ACTIVO);
-        if (hasActiveLoans) {
+        if (loanRepository.existsByBookIdAndEstado(id, EstadoPrestamo.ACTIVO)) {
             throw new IllegalStateException("No se puede eliminar el libro porque tiene préstamos activos");
         }
         bookRepository.delete(book);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public byte[] getQRImage(Long id) {
+        Book book = findBook(id);
+        return qrGenerator.generateQRImage(book.getCodigoQr());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BookResponse findByQrCode(String codigoQr) {
+        Book book = bookRepository.findByCodigoQr(codigoQr)
+                .orElseThrow(() -> new ResourceNotFoundException("Libro no encontrado con código QR: " + codigoQr));
+        return bookMapper.toResponse(book);
     }
 
     private Book findBook(Long id) {

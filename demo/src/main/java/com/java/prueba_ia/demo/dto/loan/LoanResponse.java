@@ -15,6 +15,7 @@ public class LoanResponse {
     private String username;
     private Long bookId;
     private String bookTitulo;
+    private String codigoQr;
     private LocalDateTime fechaPrestamo;
     private LocalDateTime fechaDevolucion;
     private String estado;

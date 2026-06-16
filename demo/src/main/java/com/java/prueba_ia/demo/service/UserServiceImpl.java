@@ -22,10 +22,7 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con id: " + id));
 
-        boolean hasActiveLoans = loanRepository.findByUserId(id).stream()
-                .anyMatch(loan -> loan.getEstado() == EstadoPrestamo.ACTIVO);
-
-        if (hasActiveLoans) {
+        if (loanRepository.existsByUserIdAndEstado(id, EstadoPrestamo.ACTIVO)) {
             throw new IllegalStateException("No se puede eliminar el usuario porque tiene préstamos activos");
         }
 

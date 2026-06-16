@@ -1,10 +1,10 @@
 package com.java.prueba_ia.demo.service;
 
+import com.java.prueba_ia.demo.config.QrGenerator;
 import com.java.prueba_ia.demo.dto.book.BookRequest;
 import com.java.prueba_ia.demo.dto.book.BookResponse;
 import com.java.prueba_ia.demo.entity.Book;
 import com.java.prueba_ia.demo.entity.EstadoPrestamo;
-import com.java.prueba_ia.demo.entity.Loan;
 import com.java.prueba_ia.demo.exceptions.ResourceNotFoundException;
 import com.java.prueba_ia.demo.mapper.BookMapper;
 import com.java.prueba_ia.demo.repository.BookRepository;
@@ -12,6 +12,7 @@ import com.java.prueba_ia.demo.repository.LoanRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -38,6 +39,9 @@ class BookServiceImplTest {
 
     @Mock
     private LoanRepository loanRepository;
+
+    @Mock
+    private QrGenerator qrGenerator;
 
     @InjectMocks
     private BookServiceImpl bookService;
@@ -110,17 +114,31 @@ class BookServiceImplTest {
     }
 
     @Test
-    void create_ShouldSucceed() {
+    void create_ShouldGenerateQrCode() {
         when(bookRepository.existsByIsbn(anyString())).thenReturn(false);
         when(bookMapper.toEntity(any(BookRequest.class))).thenReturn(book);
-        when(bookRepository.save(any(Book.class))).thenReturn(book);
-        when(bookMapper.toResponse(book)).thenReturn(bookResponse);
+        when(bookRepository.save(any(Book.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(bookMapper.toResponse(any(Book.class))).thenAnswer(invocation -> {
+            Book b = invocation.getArgument(0);
+            return BookResponse.builder()
+                    .id(b.getId())
+                    .titulo(b.getTitulo())
+                    .autor(b.getAutor())
+                    .isbn(b.getIsbn())
+                    .codigoQr(b.getCodigoQr())
+                    .ejemplaresDisponibles(b.getEjemplaresDisponibles())
+                    .build();
+        });
 
         BookResponse result = bookService.create(bookRequest);
 
         assertNotNull(result);
-        assertEquals("Cien Años de Soledad", result.getTitulo());
-        verify(bookRepository).save(any(Book.class));
+        assertNotNull(result.getCodigoQr());
+        assertEquals(36, result.getCodigoQr().length());
+
+        ArgumentCaptor<Book> captor = ArgumentCaptor.forClass(Book.class);
+        verify(bookRepository).save(captor.capture());
+        assertNotNull(captor.getValue().getCodigoQr());
     }
 
     @Test
@@ -170,7 +188,7 @@ class BookServiceImplTest {
     @Test
     void delete_ShouldSucceed() {
         when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
-        when(loanRepository.findByBookId(1L)).thenReturn(List.of());
+        when(loanRepository.existsByBookIdAndEstado(1L, EstadoPrestamo.ACTIVO)).thenReturn(false);
 
         bookService.delete(1L);
 
@@ -179,10 +197,8 @@ class BookServiceImplTest {
 
     @Test
     void delete_WithActiveLoans_ShouldThrow() {
-        Loan activeLoan = Loan.builder().id(1L).estado(EstadoPrestamo.ACTIVO).book(book).build();
-
         when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
-        when(loanRepository.findByBookId(1L)).thenReturn(List.of(activeLoan));
+        when(loanRepository.existsByBookIdAndEstado(1L, EstadoPrestamo.ACTIVO)).thenReturn(true);
 
         assertThrows(IllegalStateException.class, () -> bookService.delete(1L));
         verify(bookRepository, never()).delete(any());
@@ -193,5 +209,44 @@ class BookServiceImplTest {
         when(bookRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> bookService.delete(99L));
+    }
+
+    @Test
+    void getQRImage_ShouldReturnBytes() {
+        book.setCodigoQr("test-uuid-1234");
+        byte[] expectedImage = new byte[]{1, 2, 3, 4};
+
+        when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
+        when(qrGenerator.generateQRImage("test-uuid-1234")).thenReturn(expectedImage);
+
+        byte[] result = bookService.getQRImage(1L);
+
+        assertArrayEquals(expectedImage, result);
+        verify(qrGenerator).generateQRImage("test-uuid-1234");
+    }
+
+    @Test
+    void getQRImage_BookNotFound_ShouldThrow() {
+        when(bookRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> bookService.getQRImage(99L));
+    }
+
+    @Test
+    void findByQrCode_ShouldReturnBook() {
+        when(bookRepository.findByCodigoQr("test-uuid")).thenReturn(Optional.of(book));
+        when(bookMapper.toResponse(book)).thenReturn(bookResponse);
+
+        BookResponse result = bookService.findByQrCode("test-uuid");
+
+        assertNotNull(result);
+        assertEquals("Cien Años de Soledad", result.getTitulo());
+    }
+
+    @Test
+    void findByQrCode_NotFound_ShouldThrow() {
+        when(bookRepository.findByCodigoQr("invalid-uuid")).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> bookService.findByQrCode("invalid-uuid"));
     }
 }

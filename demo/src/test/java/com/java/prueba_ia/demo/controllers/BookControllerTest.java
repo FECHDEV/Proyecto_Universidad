@@ -12,6 +12,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 import java.util.List;
@@ -94,5 +95,17 @@ class BookControllerTest {
 
         assertEquals(HttpStatus.NO_CONTENT, result.getStatusCode());
         verify(bookService).delete(1L);
+    }
+
+    @Test
+    void getQR_ShouldReturnImagePng() {
+        byte[] qrImage = new byte[]{1, 2, 3, 4};
+        when(bookService.getQRImage(1L)).thenReturn(qrImage);
+
+        ResponseEntity<byte[]> result = bookController.getQR(1L);
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertEquals(MediaType.IMAGE_PNG, result.getHeaders().getContentType());
+        assertArrayEquals(qrImage, result.getBody());
     }
 }

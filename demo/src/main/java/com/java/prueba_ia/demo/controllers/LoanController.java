@@ -2,6 +2,7 @@ package com.java.prueba_ia.demo.controllers;
 
 import com.java.prueba_ia.demo.dto.loan.LoanRequest;
 import com.java.prueba_ia.demo.dto.loan.LoanResponse;
+import com.java.prueba_ia.demo.dto.loan.LoanScanRequest;
 import com.java.prueba_ia.demo.service.LoanService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -45,5 +46,19 @@ public class LoanController {
     public ResponseEntity<LoanResponse> extender(@PathVariable Long id,
                                                   Authentication authentication) {
         return ResponseEntity.ok(loanService.solicitarExtension(id, authentication.getName(), authentication.getAuthorities()));
+    }
+
+    @PostMapping("/scan")
+    public ResponseEntity<LoanResponse> createByQr(@Valid @RequestBody LoanScanRequest request,
+                                                    Authentication authentication) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(loanService.createByQr(request, authentication.getName()));
+    }
+
+    @PostMapping("/scan-devolver")
+    public ResponseEntity<LoanResponse> devolverByQr(@Valid @RequestBody LoanScanRequest request,
+                                                      Authentication authentication) {
+        return ResponseEntity.ok(
+                loanService.devolverByQr(request, authentication.getName(), authentication.getAuthorities()));
     }
 }

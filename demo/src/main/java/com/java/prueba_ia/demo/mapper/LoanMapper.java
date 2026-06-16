@@ -17,6 +17,7 @@ public interface LoanMapper {
     @Mapping(target = "username", source = "user.username")
     @Mapping(target = "bookId", source = "book.id")
     @Mapping(target = "bookTitulo", source = "book.titulo")
+    @Mapping(target = "codigoQr", source = "book.codigoQr")
     @Mapping(target = "estado", expression = "java(loan.getEstado().name())")
     @Mapping(target = "vencido", ignore = true)
     LoanResponse toResponse(Loan loan);

@@ -1,7 +1,6 @@
 package com.java.prueba_ia.demo.service;
 
 import com.java.prueba_ia.demo.entity.EstadoPrestamo;
-import com.java.prueba_ia.demo.entity.Loan;
 import com.java.prueba_ia.demo.entity.Role;
 import com.java.prueba_ia.demo.entity.User;
 import com.java.prueba_ia.demo.exceptions.ResourceNotFoundException;
@@ -14,7 +13,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -48,7 +46,7 @@ class UserServiceImplTest {
     @Test
     void delete_ShouldSucceed() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(loanRepository.findByUserId(1L)).thenReturn(List.of());
+        when(loanRepository.existsByUserIdAndEstado(1L, EstadoPrestamo.ACTIVO)).thenReturn(false);
 
         userService.delete(1L);
 
@@ -57,14 +55,8 @@ class UserServiceImplTest {
 
     @Test
     void delete_WithActiveLoans_ShouldThrow() {
-        Loan activeLoan = Loan.builder()
-                .id(1L)
-                .estado(EstadoPrestamo.ACTIVO)
-                .user(user)
-                .build();
-
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(loanRepository.findByUserId(1L)).thenReturn(List.of(activeLoan));
+        when(loanRepository.existsByUserIdAndEstado(1L, EstadoPrestamo.ACTIVO)).thenReturn(true);
 
         assertThrows(IllegalStateException.class, () -> userService.delete(1L));
         verify(userRepository, never()).delete(any());
@@ -72,14 +64,8 @@ class UserServiceImplTest {
 
     @Test
     void delete_WithOnlyReturnedLoans_ShouldSucceed() {
-        Loan returnedLoan = Loan.builder()
-                .id(1L)
-                .estado(EstadoPrestamo.DEVUELTO)
-                .user(user)
-                .build();
-
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(loanRepository.findByUserId(1L)).thenReturn(List.of(returnedLoan));
+        when(loanRepository.existsByUserIdAndEstado(1L, EstadoPrestamo.ACTIVO)).thenReturn(false);
 
         userService.delete(1L);
 
