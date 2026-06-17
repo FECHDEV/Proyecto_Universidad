@@ -11,9 +11,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,8 +41,11 @@ class AuthControllerTest {
         request.setFullName("Test User");
 
         AuthResponse response = AuthResponse.builder()
+                .id(1L)
                 .token("jwt-token")
                 .username("testuser")
+                .email("test@example.com")
+                .fullName("Test User")
                 .role("USER")
                 .build();
 
@@ -49,7 +55,9 @@ class AuthControllerTest {
 
         assertEquals(HttpStatus.CREATED, result.getStatusCode());
         assertNotNull(result.getBody());
+        assertEquals(1L, result.getBody().getId());
         assertEquals("jwt-token", result.getBody().getToken());
+        assertEquals("Test User", result.getBody().getFullName());
     }
 
     @Test
@@ -59,8 +67,11 @@ class AuthControllerTest {
         request.setPassword("password123");
 
         AuthResponse response = AuthResponse.builder()
+                .id(1L)
                 .token("jwt-token")
                 .username("testuser")
+                .email("test@example.com")
+                .fullName("Test User")
                 .role("USER")
                 .build();
 
@@ -71,5 +82,28 @@ class AuthControllerTest {
         assertEquals(HttpStatus.OK, result.getStatusCode());
         assertNotNull(result.getBody());
         assertEquals("jwt-token", result.getBody().getToken());
+    }
+
+    @Test
+    void me_ShouldReturn200() {
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getName()).thenReturn("testuser");
+
+        AuthResponse response = AuthResponse.builder()
+                .id(1L)
+                .username("testuser")
+                .email("test@example.com")
+                .fullName("Test User")
+                .role("USER")
+                .build();
+
+        when(authService.me("testuser")).thenReturn(response);
+
+        ResponseEntity<AuthResponse> result = authController.me(authentication);
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertNotNull(result.getBody());
+        assertEquals("testuser", result.getBody().getUsername());
+        assertEquals("Test User", result.getBody().getFullName());
     }
 }

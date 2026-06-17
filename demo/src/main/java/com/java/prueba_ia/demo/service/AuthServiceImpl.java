@@ -6,6 +6,7 @@ import com.java.prueba_ia.demo.dto.auth.LoginRequest;
 import com.java.prueba_ia.demo.dto.auth.RegisterRequest;
 import com.java.prueba_ia.demo.entity.Role;
 import com.java.prueba_ia.demo.entity.User;
+import com.java.prueba_ia.demo.exceptions.ResourceNotFoundException;
 import com.java.prueba_ia.demo.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -49,11 +50,7 @@ public class AuthServiceImpl implements AuthService {
 
         String token = jwtUtil.generateToken(user.getUsername(), user.getRole().name());
 
-        return AuthResponse.builder()
-                .token(token)
-                .username(user.getUsername())
-                .role(user.getRole().name())
-                .build();
+        return toAuthResponse(user, token);
     }
 
     @Override
@@ -67,9 +64,23 @@ public class AuthServiceImpl implements AuthService {
 
         String token = jwtUtil.generateToken(user.getUsername(), user.getRole().name());
 
+        return toAuthResponse(user, token);
+    }
+
+    @Override
+    public AuthResponse me(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+        return toAuthResponse(user, null);
+    }
+
+    private AuthResponse toAuthResponse(User user, String token) {
         return AuthResponse.builder()
+                .id(user.getId())
                 .token(token)
                 .username(user.getUsername())
+                .email(user.getEmail())
+                .fullName(user.getFullName())
                 .role(user.getRole().name())
                 .build();
     }

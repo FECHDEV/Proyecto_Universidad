@@ -1,5 +1,6 @@
 package com.java.prueba_ia.demo.service;
 
+import com.java.prueba_ia.demo.dto.user.UserResponse;
 import com.java.prueba_ia.demo.entity.EstadoPrestamo;
 import com.java.prueba_ia.demo.entity.Role;
 import com.java.prueba_ia.demo.entity.User;
@@ -13,6 +14,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -37,10 +39,25 @@ class UserServiceImplTest {
         user = User.builder()
                 .id(1L)
                 .username("testuser")
+                .password("encoded")
                 .email("test@example.com")
                 .fullName("Test User")
                 .role(Role.USER)
                 .build();
+    }
+
+    @Test
+    void findAll_ShouldReturnAllUsers() {
+        when(userRepository.findAll()).thenReturn(List.of(user));
+
+        List<UserResponse> result = userService.findAll();
+
+        assertEquals(1, result.size());
+        assertEquals(1L, result.getFirst().getId());
+        assertEquals("testuser", result.getFirst().getUsername());
+        assertEquals("test@example.com", result.getFirst().getEmail());
+        assertEquals("Test User", result.getFirst().getFullName());
+        assertEquals("USER", result.getFirst().getRole());
     }
 
     @Test
