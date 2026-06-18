@@ -46,6 +46,11 @@ public class BookController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/qr/{codigo}")
+    public ResponseEntity<BookResponse> findByQrCode(@PathVariable String codigo) {
+        return ResponseEntity.ok(bookService.findByQrCode(codigo));
+    }
+
     @GetMapping("/{id}/qr")
     public ResponseEntity<byte[]> getQR(@PathVariable Long id) {
         byte[] qrImage = bookService.getQRImage(id);

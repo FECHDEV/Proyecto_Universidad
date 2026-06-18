@@ -47,6 +47,15 @@ public class LoanServiceImpl implements LoanService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public LoanResponse findById(Long id, String username, Collection<? extends GrantedAuthority> authorities) {
+        Loan loan = loanRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Préstamo no encontrado con id: " + id));
+        verifyOwnershipOrAdmin(loan, username, authorities);
+        return loanMapper.toResponse(loan);
+    }
+
+    @Override
     @Transactional
     public LoanResponse create(LoanRequest request, String username) {
         User user = userRepository.findByUsername(username)

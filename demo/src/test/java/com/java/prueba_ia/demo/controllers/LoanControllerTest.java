@@ -67,6 +67,16 @@ class LoanControllerTest {
     }
 
     @Test
+    void findById_ShouldReturnLoan() {
+        when(loanService.findById(anyLong(), anyString(), anyCollection())).thenReturn(loanResponse);
+
+        ResponseEntity<LoanResponse> result = loanController.findById(1L, authentication);
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertEquals("Cien Años de Soledad", result.getBody().getBookTitulo());
+    }
+
+    @Test
     void create_ShouldReturn201() {
         LoanRequest request = new LoanRequest();
         request.setBookId(1L);

@@ -98,6 +98,16 @@ class BookControllerTest {
     }
 
     @Test
+    void findByQrCode_ShouldReturnBook() {
+        when(bookService.findByQrCode("test-uuid")).thenReturn(bookResponse);
+
+        ResponseEntity<BookResponse> result = bookController.findByQrCode("test-uuid");
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertEquals("Cien Años de Soledad", result.getBody().getTitulo());
+    }
+
+    @Test
     void getQR_ShouldReturnImagePng() {
         byte[] qrImage = new byte[]{1, 2, 3, 4};
         when(bookService.getQRImage(1L)).thenReturn(qrImage);

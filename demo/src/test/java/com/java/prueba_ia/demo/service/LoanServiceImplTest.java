@@ -146,6 +146,44 @@ class LoanServiceImplTest {
     }
 
     @Test
+    void findById_OwnLoan_ShouldReturnLoan() {
+        when(loanRepository.findById(1L)).thenReturn(Optional.of(activeLoan));
+        when(loanMapper.toResponse(activeLoan)).thenReturn(loanResponse);
+
+        LoanResponse result = loanService.findById(1L, "testuser", userAuthorities);
+
+        assertNotNull(result);
+        assertEquals("Cien Años de Soledad", result.getBookTitulo());
+    }
+
+    @Test
+    void findById_AsAdmin_ShouldReturnAnyLoan() {
+        when(loanRepository.findById(1L)).thenReturn(Optional.of(activeLoan));
+        when(loanMapper.toResponse(activeLoan)).thenReturn(loanResponse);
+
+        LoanResponse result = loanService.findById(1L, "admin", adminAuthorities);
+
+        assertNotNull(result);
+        assertEquals("Cien Años de Soledad", result.getBookTitulo());
+    }
+
+    @Test
+    void findById_NotOwnLoan_NotAdmin_ShouldThrow() {
+        when(loanRepository.findById(1L)).thenReturn(Optional.of(activeLoan));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> loanService.findById(1L, "otheruser", userAuthorities));
+    }
+
+    @Test
+    void findById_NotFound_ShouldThrow() {
+        when(loanRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> loanService.findById(99L, "testuser", userAuthorities));
+    }
+
+    @Test
     void create_ShouldSucceed() {
         when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(user));
         when(bookRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(book));

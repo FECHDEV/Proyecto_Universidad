@@ -27,6 +27,11 @@ public class LoanController {
         return ResponseEntity.ok(loanService.findAll(pageable, authentication.getName(), authentication.getAuthorities()));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<LoanResponse> findById(@PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(loanService.findById(id, authentication.getName(), authentication.getAuthorities()));
+    }
+
     @PostMapping
     public ResponseEntity<LoanResponse> create(@Valid @RequestBody LoanRequest request,
                                                 Authentication authentication) {

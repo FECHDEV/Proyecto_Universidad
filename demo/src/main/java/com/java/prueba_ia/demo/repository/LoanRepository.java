@@ -6,10 +6,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 public interface LoanRepository extends JpaRepository<Loan, Long> {
+    List<Loan> findAllByEstadoAndFechaMaximaDevolucionBefore(EstadoPrestamo estado, LocalDateTime fecha);
     List<Loan> findByUserId(Long userId);
     Page<Loan> findByUserId(Long userId, Pageable pageable);
     List<Loan> findByBookId(Long bookId);
