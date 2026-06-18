@@ -20,9 +20,9 @@ El proyecto ya está en desarrollo, por lo tanto debes trabajar sobre código ex
 ### 1. CONTEXTO INICIAL
 Siempre en este orden:
 
-1. Leer docs/ai-lite.md
+1. Leer demo/docs/ai-lite.md
 2. Analizar código relevante
-3. Usar docs/context.md solo si es necesario
+3. Usar demo/docs/context.md solo si es necesario
 
 No asumir memoria entre sesiones.
 
@@ -118,8 +118,8 @@ Clasificar cambios:
 
 ## MEMORY USAGE STRATEGY
 
-- Always read docs/ai-lite.md first for understanding the system quickly.
-- Only read docs/context.md when ai-lite.md is not enough to understand domain or structure.
+- Always read demo/docs/ai-lite.md first for understanding the system quickly.
+- Only read demo/docs/context.md when ai-lite.md is not enough to understand domain or structure.
 - Avoid loading full context.md unless necessary for implementation.
 - Prefer codebase over documentation when there is conflict.
 - Before using context.md, explicitly decide if the task requires deep domain knowledge. If not, avoid it.
