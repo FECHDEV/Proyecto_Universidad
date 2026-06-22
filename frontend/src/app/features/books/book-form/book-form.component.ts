@@ -1,0 +1,9 @@
+﻿import { Component } from '@angular/core';
+
+@Component({
+  selector: 'app-book-form',
+  standalone: true,
+  template: '<p>book-form works</p>',
+  styles: ''
+})
+export class BookFormComponent {}
